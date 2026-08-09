@@ -2,8 +2,9 @@ use reqwest::header::{ACCEPT, AUTHORIZATION, RANGE, REFERER, USER_AGENT};
 use reqwest::{Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::error::Error as _;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 use url::Url;
@@ -893,18 +894,68 @@ pub(crate) fn extract_spade_url(settings: &str) -> Option<String> {
     })
 }
 
+fn spade_client() -> &'static reqwest::Client {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(20))
+            .pool_max_idle_per_host(0)
+            .build()
+            .expect("valid Spade HTTP client")
+    })
+}
+
+fn telemetry_transport_detail(error: &reqwest::Error) -> String {
+    let kind = if error.is_timeout() {
+        "timeout"
+    } else if error.is_connect() {
+        "connect"
+    } else if error.is_request() {
+        "request"
+    } else if error.is_body() {
+        "body"
+    } else if error.is_decode() {
+        "decode"
+    } else if error.is_redirect() {
+        "redirect"
+    } else {
+        "transport"
+    };
+
+    let mut causes = Vec::new();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        let message = cause.to_string();
+        if !message.is_empty() && !causes.iter().any(|existing| existing == &message) {
+            causes.push(message);
+        }
+        if causes.len() >= 3 {
+            break;
+        }
+        source = cause.source();
+    }
+
+    if causes.is_empty() {
+        kind.to_string()
+    } else {
+        format!("{kind}: {}", truncate_message(&causes.join(" -> ")))
+    }
+}
+
 fn telemetry_transport_message(endpoint: &Url, error: &reqwest::Error) -> String {
     let host = endpoint
         .host_str()
         .unwrap_or("unknown Twitch telemetry host");
+    let detail = telemetry_transport_detail(error);
     if error.is_timeout() {
-        format!("Twitch telemetry timed out connecting to {host}")
+        format!("Twitch telemetry timed out connecting to {host} ({detail})")
     } else if error.is_connect() {
         format!(
-            "Twitch telemetry connection failed for {host}; check DNS, firewall, VPN, or ad/tracker blocking"
+            "Twitch telemetry connection failed for {host}; check DNS, firewall, VPN, or ad/tracker blocking ({detail})"
         )
     } else {
-        format!("Twitch telemetry transport failed for {host}")
+        format!("Twitch telemetry transport failed for {host} ({detail})")
     }
 }
 
@@ -915,7 +966,7 @@ async fn send_minute_watched(
 ) -> Result<StatusCode, ProtocolError> {
     let payload = build_minute_watched_payload(target, viewer_id);
     let encoded = base64_encode(payload.as_bytes());
-    let response = shared_client()
+    let response = spade_client()
         .post(endpoint.clone())
         .header(USER_AGENT, USER_AGENT_VALUE)
         .form(&[("data", encoded.as_str())])
