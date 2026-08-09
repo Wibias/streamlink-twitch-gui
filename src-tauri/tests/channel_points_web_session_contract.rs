@@ -27,6 +27,7 @@ fn channel_points_uses_website_session() {
     assert!(!auth_bar.contains("ChannelPointsAuth"));
     assert!(website_auth.contains("syncViewerPresence(true)"));
 
-    // Protected bonus claims remain out of scope for passive watch credit.
-    assert!(!points.contains("ClaimCommunityPoints"));
+    // Bonus claims stay on the same Website-authenticated Channel Points stack.
+    assert!(points.contains("ClaimCommunityPoints"));
+    assert!(points.contains("crate::channel_points_realtime::is_ready()"));
 }
