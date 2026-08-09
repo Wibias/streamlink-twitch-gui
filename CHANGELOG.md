@@ -12,6 +12,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional Authenticode-signed installers once a Windows code-signing certificate is available in CI
 - Further parity and polish as we dogfood releases
 
+## [0.4.0] — 2026-08-09
+
+### Added
+
+- **Twitch Website authentication** for authenticated playback (separate from Device Code Helix login)
+- **Channel Points (experimental)**: optional viewer presence while watching; balance display; auto-claim watch/bonus rewards when Website auth is configured
+- **Channel Points claim auth**: separate Twitch TV login used only for bonus claims when Website session cannot claim
+- **Channel Points diagnostics** in the auth bar (Hermes presence, Spade telemetry, protocol status)
+- **Multistream vertical layouts** (`1x2`, `1x3`, `1x4`, `8x1`) and drag-and-drop slot ordering fix
+- Dependabot configuration for npm and Cargo
+
+### Fixed
+
+- Viewer presence sync after settings hydration and Twitch login
+- 20-second Channel Points heartbeat cadence
+- Spade telemetry headers and isolated transport (stale connection recovery)
+- Authenticated Hermes WebSocket presence for Channel Points
+- Pre-push CI hook works from GitHub Desktop (minimal PATH / Node discovery)
+- Various Channel Points watch contract and Web-player alignment fixes
+
+### Changed
+
+- Settings schema adds `streaming.channelPoints` (default off, experimental)
+- README release section version reference to 0.4.0
+
 ## [0.3.1] — 2026-08-01
 
 ### Fixed
@@ -127,7 +152,8 @@ First public preview of the Windows rewrite (Tauri 2 + React + TypeScript). The 
 - Chatty is intentionally not supported
 - Unsigned installers may show a SmartScreen “Unknown publisher” warning until Authenticode is configured
 
-[Unreleased]: https://github.com/Wibias/streamlink-twitch-gui/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/Wibias/streamlink-twitch-gui/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Wibias/streamlink-twitch-gui/releases/tag/v0.4.0
 [0.3.1]: https://github.com/Wibias/streamlink-twitch-gui/releases/tag/v0.3.1
 [0.3.0]: https://github.com/Wibias/streamlink-twitch-gui/releases/tag/v0.3.0
 [0.2.1]: https://github.com/Wibias/streamlink-twitch-gui/releases/tag/v0.2.1
